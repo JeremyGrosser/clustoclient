@@ -1,0 +1,18 @@
+# redis.conf.template
+{% set redis_master = server.attr_value(key='redis', subkey='master', merge=True) %}
+{% set redis_port = server.attr_value(key='redis', subkey='port', merge=True) %}
+
+daemonize no
+pidfile /var/run/redis.pid
+
+{% for ip in server.attr_values(key='ip', subkey='ipstring') %}
+bind {{ ip }}
+{% endfor %}
+
+{% if redis_port %}
+port {{ redis_port }}
+{% endif %}
+
+{% if redis_master %}
+slaveof {{ redis_master }}
+{% endif %}
