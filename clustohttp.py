@@ -12,7 +12,7 @@ import httplib
 import logging
 import sys
 import os
-import re
+
 
 handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter('%(levelname)s %(message)s'))
@@ -224,7 +224,3 @@ class EntityProxy(object):
 
     def __hash__(self):
         return hash(self.name)
-
-
-if __name__ == '__main__':
-    sys.exit(main())
