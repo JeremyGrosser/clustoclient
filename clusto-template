@@ -31,9 +31,24 @@ def main():
 
     clusto = clustohttp.ClustoProxy()
 
-    server = clusto.get_by_name(options.name)
-    template = tenv.get_template(template)
-    output = template.render(server=server, clusto=clusto)
+    try:
+        server = clusto.get_by_name(options.name)
+    except LookupError, e:
+        sys.stderr.write(str(e) + '\n')
+        return -1
+
+    try:
+        template = tenv.get_template(template)
+    except jinja2.TemplateNotFound, e:
+        sys.stderr.write('Unable to find template: %s/%s\n' % (options.template_root, template))
+        sys.stderr.write(str(e) + '\n')
+        return -1
+
+    try:
+        output = template.render(server=server, clusto=clusto)
+    except Exception, e:
+        sys.stderr.write('Error rendering template: %s\n' % str(e))
+        return -1
 
     try:
         existing = file(outputfile, 'r').read()
@@ -42,7 +57,7 @@ def main():
     if existing == output:
         sys.stderr.write('Rendered template matches output file, not ' +
                          'overwriting.\n')
-        return 1
+        return 0
 
     diff = difflib.unified_diff([existing], [output], lineterm='\n')
     for line in diff:
