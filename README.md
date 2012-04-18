@@ -6,26 +6,30 @@ clustohttp (the core of the client libraries) emulates the Clusto API to a limit
 
 redis.conf.template:
 
-	{% set redis_master = server.attr_value(key='redis', subkey='master', merge=True) %}
-	{% set redis_port = server.attr_value(key='redis', subkey='port', merge=True) %}
+```jinja
+{% set redis_master = server.attr_value(key='redis', subkey='master', merge=True) %}
+{% set redis_port = server.attr_value(key='redis', subkey='port', merge=True) %}
 
-	daemonize no
-	pidfile /var/run/redis.pid
+daemonize no
+pidfile /var/run/redis.pid
 
-	{% for ip in server.attr_values(key='ip', subkey='ipstring') %}
-	bind {{ ip }}
-	{% endfor %}
+{% for ip in server.attr_values(key='ip', subkey='ipstring') %}
+bind {{ ip }}
+{% endfor %}
 
-	{% if redis_port %}
-	port {{ redis_port }}
-	{% endif %}
+{% if redis_port %}
+port {{ redis_port }}
+{% endif %}
 
-	{% if redis_master %}
-	slaveof {{ redis_master }}
-	{% endif %}
+{% if redis_master %}
+slaveof {{ redis_master }}
+{% endif %}
+```
 
 Generating the config:
 
-	$ export CLUSTO_URL=http://clusto.example.com
-	$ export CLUSTO_AUTH=username:password
-	$ clusto-template -r . redis.conf.template /etc/redis.conf
+```shell
+export CLUSTO_URL=http://clusto.example.com
+export CLUSTO_AUTH=username:password
+clusto-template -r . redis.conf.template /etc/redis.conf
+```
