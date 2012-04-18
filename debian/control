@@ -1,0 +1,12 @@
+Source: clustoclient
+Section: misc
+Priority: extra
+Maintainer: Jeremy Grosser <jeremy@synack.me>
+Build-Depends: cdbs, debhelper (>= 7), python, python-setuptools
+Standards-Version: 3.8.3
+Homepage: https://github.com/synack/clustoclient
+
+Package: clustoclient
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, python-jinja2
+Description: Python client library and utilities for Clusto

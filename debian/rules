@@ -1,0 +1,8 @@
+#!/usr/bin/make -f
+
+# We do this so that pbuilder doesn't die outside the chroot on lucid
+clean:
+	python setup.py clean
+
+%:
+	dh $@ --with python2
