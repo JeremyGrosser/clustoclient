@@ -19,7 +19,7 @@ handler.setFormatter(logging.Formatter('%(levelname)s %(message)s'))
 
 log = logging.getLogger('clustohttp')
 log.addHandler(handler)
-#log.setLevel(logging.DEBUG)
+log.setLevel(logging.ERROR)
 
 AUTH_BASIC = os.environ.get('CLUSTO_AUTH', None)
 
@@ -48,7 +48,7 @@ def request(method, url, body='', headers={}):
         data = response.read()
     conn.close()
     if response.status >= 400:
-        log.error('Server error %s: %s' % (response.status, data))
+        log.warning('Server error %s: %s' % (response.status, data))
     log.debug('Response time: %.03f' % (time() - start))
     return (response.status, response.getheaders(), data)
 
@@ -79,10 +79,12 @@ class ClustoProxy(object):
 
     def get_by_name(self, name):
         status, headers, response = request('GET', self.url + '/query/get_by_name?name=%s' % quote(name))
-        if status != 200:
-            raise Exception(response)
-        obj = json.loads(response)
-        return EntityProxy(self.url, obj['object'], self, cache=obj)
+        if status == 200:
+            obj = json.loads(response)
+            return EntityProxy(self.url, obj['object'], self, cache=obj)
+        if status == 404:
+            raise LookupError('%s does not exist!' % name)
+        raise Exception(response)
 
     def get_from_pools(self, pools, clusto_types=None):
         url = self.url + '/query/get_from_pools?pools=%s' % ','.join(pools)
