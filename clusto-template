@@ -19,6 +19,9 @@ def main():
         default=socket.gethostname().split('.', 1)[0],
         help='Name of the clusto object to query attributes from. Default ' +
              'is this system\'s hostname without a domain part')
+    parser.add_option('-v', '--verbose', dest='verbose', action='store_true',
+        help='Writes status messages and a diff to stderr if the output ' +
+             'file differs from the existing file on disk')
     options, args = parser.parse_args()
 
     if len(args) < 2:
@@ -55,15 +58,17 @@ def main():
     except:
         existing = ''
     if existing == output:
-        sys.stderr.write('Rendered template matches output file, not ' +
-                         'overwriting.\n')
+        if options.verbose:
+            sys.stderr.write('Rendered template matches output file, not ' +
+                             'overwriting.\n')
         return 0
 
-    diff = difflib.unified_diff([existing], [output], lineterm='\n')
-    for line in diff:
-        sys.stderr.write(line)
-    sys.stderr.write('\n')
-    sys.stderr.flush()
+    if options.verbose:
+        diff = difflib.unified_diff([existing], [output], lineterm='\n')
+        for line in diff:
+            sys.stderr.write(line)
+        sys.stderr.write('\n')
+        sys.stderr.flush()
 
     fd = file(outputfile, 'w')
     fd.write(output)
