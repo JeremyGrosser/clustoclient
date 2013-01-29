@@ -1,3 +1,9 @@
+clustoclient (0.2) unstable; urgency=low
+
+  * Significant improvements
+
+ -- Jeremy Grosser <jeremy@synack.me>  Tue, 29 Jan 2013 10:18:05 +0000
+
 clustoclient (0.1) unstable; urgency=low
 
   * Initial release
