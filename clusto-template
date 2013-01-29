@@ -9,6 +9,11 @@ import socket
 import sys
 
 
+def serversort(servers):
+    servers.sort(key=lambda x: (x.datacenter, x.name))
+    return servers
+
+
 def main():
     parser = optparse.OptionParser(
         usage='%prog [options] <template> <output file>')
@@ -29,8 +34,9 @@ def main():
         return -1
     template, outputfile = args[:2]
 
-    tenv = jinja2.Environment(
+    tenv = jinja2.Environment(trim_blocks=True,
         loader=jinja2.FileSystemLoader(options.template_root))
+    tenv.filters['serversort'] = serversort
 
     clusto = clustohttp.ClustoProxy()
 
@@ -47,30 +53,28 @@ def main():
         sys.stderr.write(str(e) + '\n')
         return -1
 
-    try:
-        output = template.render(server=server, clusto=clusto)
-    except Exception, e:
-        sys.stderr.write('Error rendering template: %s\n' % str(e))
-        return -1
+    output = template.render(server=server, clusto=clusto)
 
-    try:
-        existing = file(outputfile, 'r').read()
-    except:
-        existing = ''
-    if existing == output:
+    if outputfile != '-':
+        try:
+            existing = file(outputfile, 'r').read()
+            if existing == output:
+                if options.verbose:
+                    log.critical('Rendered template matches output file, not overwriting.')
+                return 0
+        except Exception, e:
+            log.exception('Unable to read target file, assuming empty')
+            existing = ''
+
         if options.verbose:
-            sys.stderr.write('Rendered template matches output file, not ' +
-                             'overwriting.\n')
-        return 0
-
-    if options.verbose:
-        diff = difflib.unified_diff([existing], [output], lineterm='\n')
-        for line in diff:
-            sys.stderr.write(line)
-        sys.stderr.write('\n')
-        sys.stderr.flush()
-
-    fd = file(outputfile, 'w')
+            diff = difflib.context_diff([existing], [output], lineterm='\n')
+            for line in diff:
+                sys.stderr.write(line)
+            sys.stderr.write('\n')
+            sys.stderr.flush()
+        fd = file(outputfile, 'w')
+    else:
+        fd = sys.stdout
     fd.write(output)
     fd.flush()
     fd.close()

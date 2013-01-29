@@ -3,6 +3,7 @@ try:
     import simplejson as json
 except ImportError:
     import json
+from IPy import IP
 
 from urllib import urlencode, quote
 from urlparse import urlsplit, urljoin
@@ -19,7 +20,7 @@ handler.setFormatter(logging.Formatter('%(levelname)s %(message)s'))
 
 log = logging.getLogger('clustohttp')
 log.addHandler(handler)
-log.setLevel(logging.ERROR)
+log.setLevel(logging.INFO)
 
 AUTH_BASIC = os.environ.get('CLUSTO_AUTH', None)
 
@@ -93,7 +94,7 @@ class ClustoProxy(object):
         status, headers, response = request('GET', url)
         if status != 200:
             raise Exception(response)
-        return [EntityProxy(self.url, self, x) for x in json.loads(response)]
+        return [EntityProxy(self.url, x, self) for x in json.loads(response)]
 
     def get_ip_manager(self, ip):
         status, headers, response = request('GET', self.url + '/query/get_ip_manager?ip=%s' % ip)
@@ -179,6 +180,8 @@ class EntityProxy(object):
         return s
 
     def attrs(self, use_cache=True, **kwargs):
+        if 'merge_container_attrs' in kwargs:
+            use_cache = False
         if use_cache and 'attrs' in self.cache:
             result = []
             for attr in self.cache['attrs']:
@@ -226,3 +229,22 @@ class EntityProxy(object):
 
     def __hash__(self):
         return hash(self.name)
+
+    @property
+    def private_ip(self):
+        ips = self.attr_values(key='ip', subkey='ipstring')
+        ips = [x for x in ips if IP(x).iptype() == 'PRIVATE']
+        return ips[0]
+
+    @property
+    def datacenter(self):
+        return self.attr_value(key='puppet', subkey='datacenter', merge_container_attrs=True)
+
+    @property
+    def role(self):
+        for p in self.parents():
+            if p.type != 'pool':
+                continue
+            if p.attr_value(key='pooltype') == 'role':
+                return p.name
+        return None
