@@ -1,3 +1,9 @@
+clustoclient (0.3) unstable; urgency=low
+
+  * Minor cleanups
+
+ -- James Brown <jbrown@uber.com>  Thu, 30 May 2013 11:52:27 -0700
+
 clustoclient (0.2) unstable; urgency=low
 
   * Significant improvements

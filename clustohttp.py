@@ -6,21 +6,14 @@ except ImportError:
 from IPy import IP
 
 from urllib import urlencode, quote
-from urlparse import urlsplit, urljoin
+from urlparse import urlsplit
 from time import time
-import itertools
 import httplib
 import logging
-import sys
 import os
 
 
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter('%(levelname)s %(message)s'))
-
 log = logging.getLogger('clustohttp')
-log.addHandler(handler)
-log.setLevel(logging.INFO)
 
 AUTH_BASIC = os.environ.get('CLUSTO_AUTH', None)
 
@@ -28,7 +21,7 @@ AUTH_BASIC = os.environ.get('CLUSTO_AUTH', None)
 def request(method, url, body='', headers={}):
     log.debug('%s %s' % (method, url))
     start = time()
-    if type(body) != type(''):
+    if not isinstance(body, basestring):
         body = urlencode(body)
     url = urlsplit(url, 'http')
 
@@ -60,8 +53,7 @@ class ClustoProxy(object):
             if 'CLUSTO_URL' in os.environ:
                 url = os.environ['CLUSTO_URL']
             else:
-                log.critical('CLUSTO_URL environment variable is not set!')
-                return
+                raise ValueError('CLUSTO_URL environment variable is not set and no url was passed')
         self.url = url
 
     def get_entities(self, **kwargs):
