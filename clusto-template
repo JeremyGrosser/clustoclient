@@ -24,6 +24,7 @@ def do_template(template, outputfile, template_root, name):
     clusto = clustohttp.ClustoProxy()
 
     server = clusto.get_by_name(name)
+    log.debug('Templating for server %s with role %s', server, server.role)
 
     try:
         template = tenv.get_template(template)
@@ -72,6 +73,7 @@ def main():
     handler = logging.StreamHandler()
     handler.setLevel(logging.DEBUG if options.verbose else logging.WARNING)
     handler.setFormatter(logging.Formatter('%(levelname)s %(message)s'))
+    log.setLevel(logging.DEBUG if options.verbose else logging.WARNING)
     log.addHandler(handler)
     logging.getLogger('clustohttp').addHandler(handler)
 
