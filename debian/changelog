@@ -1,3 +1,9 @@
+clustoclient (0.3.1) unstable; urgency=low
+
+  * Add logging and allow using the set() constructor inside templates
+
+ -- James Brown <jbrown@uber.com>  Thu, 13 Jun 2013 11:45:11 -0700
+
 clustoclient (0.3) unstable; urgency=low
 
   * Minor cleanups

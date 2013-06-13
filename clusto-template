@@ -12,8 +12,7 @@ log = logging.getLogger('clusto-template')
 
 
 def serversort(servers):
-    servers.sort(key=lambda x: (x.datacenter, x.name))
-    return servers
+    return list(sorted(servers, key=lambda x: (x.datacenter, x.name)))
 
 
 def do_template(template, outputfile, template_root, name):
@@ -24,13 +23,14 @@ def do_template(template, outputfile, template_root, name):
     clusto = clustohttp.ClustoProxy()
 
     server = clusto.get_by_name(name)
+    log.debug('Templating for server %s with role %s', server, server.role)
 
     try:
         template = tenv.get_template(template)
     except jinja2.TemplateNotFound:
         raise ValueError('Unable to find template %s under root %s', template, template_root)
 
-    output = template.render(server=server, clusto=clusto)
+    output = template.render(server=server, clusto=clusto, set=set)
 
     if outputfile == '-':
         sys.stdout.write(output)
@@ -72,6 +72,7 @@ def main():
     handler = logging.StreamHandler()
     handler.setLevel(logging.DEBUG if options.verbose else logging.WARNING)
     handler.setFormatter(logging.Formatter('%(levelname)s %(message)s'))
+    log.setLevel(logging.DEBUG if options.verbose else logging.WARNING)
     log.addHandler(handler)
     logging.getLogger('clustohttp').addHandler(handler)
 
