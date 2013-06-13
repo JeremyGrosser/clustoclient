@@ -12,8 +12,7 @@ log = logging.getLogger('clusto-template')
 
 
 def serversort(servers):
-    servers.sort(key=lambda x: (x.datacenter, x.name))
-    return servers
+    return list(sorted(servers, key=lambda x: (x.datacenter, x.name)))
 
 
 def do_template(template, outputfile, template_root, name):
@@ -31,7 +30,7 @@ def do_template(template, outputfile, template_root, name):
     except jinja2.TemplateNotFound:
         raise ValueError('Unable to find template %s under root %s', template, template_root)
 
-    output = template.render(server=server, clusto=clusto)
+    output = template.render(server=server, clusto=clusto, set=set)
 
     if outputfile == '-':
         sys.stdout.write(output)
