@@ -15,95 +15,104 @@ import os
 
 log = logging.getLogger('clustohttp')
 
-AUTH_BASIC = os.environ.get('CLUSTO_AUTH', None)
-
-
-def request(method, url, body='', headers={}):
-    log.debug('%s %s' % (method, url))
-    start = time()
-    if not isinstance(body, basestring):
-        body = urlencode(body)
-    url = urlsplit(url, 'http')
-
-    if AUTH_BASIC:
-        headers['Authorization'] = 'Basic %s' % AUTH_BASIC.encode('base64')
-
-    conn = httplib.HTTPConnection(url.hostname, url.port)
-    if url.query:
-        query = '%s?%s' % (url.path, url.query)
-    else:
-        query = url.path
-    conn.request(method, query, body, headers)
-    response = conn.getresponse()
-    length = response.getheader('Content-length', None)
-    if length:
-        data = response.read(int(length))
-    else:
-        data = response.read()
-    conn.close()
-    if response.status >= 400:
-        log.warning('Server error %s: %s' % (response.status, data))
-    log.debug('Response time: %.03f' % (time() - start))
-    return (response.status, response.getheaders(), data)
-
 
 class ClustoProxy(object):
-    def __init__(self, url=None):
+    def __init__(self, url=None, auth=None):
         if url is None:
             if 'CLUSTO_URL' in os.environ:
                 url = os.environ['CLUSTO_URL']
             else:
                 raise ValueError('CLUSTO_URL environment variable is not set and no url was passed')
         self.url = url
+        if auth is None:
+            auth = os.environ.get('CLUSTO_AUTH', None)
+        self.auth = auth
+
+    def request(self, method, path, body='', headers={}):
+        if path.startswith('/'):
+            url = self.url + path
+        else:
+            url = self.url + '/' + path
+        log.debug('%s %s' % (method, url))
+        start = time()
+        if not isinstance(body, basestring):
+            body = urlencode(body)
+        url = urlsplit(url, 'http')
+
+        if self.auth:
+            headers['Authorization'] = 'Basic %s' % self.auth.encode('base64')
+
+        conn = httplib.HTTPConnection(url.hostname, url.port)
+        if url.query:
+            query = '%s?%s' % (url.path, url.query)
+        else:
+            query = url.path
+        conn.request(method, query, body, headers)
+        response = conn.getresponse()
+        length = response.getheader('Content-length', None)
+        if length:
+            data = response.read(int(length))
+        else:
+            data = response.read()
+        conn.close()
+        if response.status >= 400:
+            log.warning('Server error %s: %s' % (response.status, data))
+        log.debug('Response time: %.03f' % (time() - start))
+        return (response.status, response.getheaders(), data)
 
     def get_entities(self, **kwargs):
         for k, v in kwargs.items():
             kwargs[k] = json.dumps(v)
-        status, headers, response = request('POST', self.url + '/query/get_entities?%s' % urlencode(kwargs))
+        status, headers, response = self.request('POST', '/query/get_entities?%s' % urlencode(kwargs))
         if status != 200:
             raise Exception(response)
-        return [EntityProxy(self.url, x, self) for x in json.loads(response)]
+        return [EntityProxy(self, x) for x in json.loads(response)]
 
     def get(self, name):
-        status, headers, response = request('GET', self.url + '/query/get?name=%s' % quote(name))
+        status, headers, response = self.request('GET', '/query/get?name=%s' % quote(name))
         if status != 200:
             raise Exception(response)
-        return [EntityProxy(self.url, x['object'], self, cache=x) for x in json.loads(response)]
+        return [EntityProxy(self, x['object'], cache=x) for x in json.loads(response)]
 
     def get_by_name(self, name):
-        status, headers, response = request('GET', self.url + '/query/get_by_name?name=%s' % quote(name))
+        status, headers, response = self.request('GET', '/query/get_by_name?name=%s' % quote(name))
         if status == 200:
             obj = json.loads(response)
-            return EntityProxy(self.url, obj['object'], self, cache=obj)
+            return EntityProxy(self, obj['object'], cache=obj)
         if status == 404:
             raise LookupError('%s does not exist!' % name)
         raise Exception(response)
 
     def get_from_pools(self, pools, clusto_types=None):
-        url = self.url + '/query/get_from_pools?pools=%s' % ','.join(pools)
+        url = '/query/get_from_pools?pools=%s' % ','.join(pools)
         if clusto_types:
             url += '&types=' + ','.join(clusto_types)
-        status, headers, response = request('GET', url)
+        status, headers, response = self.request('GET', url)
         if status != 200:
             raise Exception(response)
-        return [EntityProxy(self.url, x, self) for x in json.loads(response)]
+        return [EntityProxy(self, x) for x in json.loads(response)]
 
     def get_ip_manager(self, ip):
-        status, headers, response = request('GET', self.url + '/query/get_ip_manager?ip=%s' % ip)
+        status, headers, response = self.request('GET', '/query/get_ip_manager?ip=%s' % ip)
         if status != 200:
             raise Exception(response)
-        return EntityProxy(self.url, json.loads(response), self)
+        return EntityProxy(self, json.loads(response))
+
+    def __repr__(self):
+        return 'ClustoProxy(%s)' % self.url
 
 
 class EntityProxy(object):
-    def __init__(self, baseurl, path, api, cache={}):
-        self.baseurl = baseurl
+    def __init__(self, clusto_proxy, path, cache={}):
         self.path = path
-        self.api = api
+        self.clusto_proxy = clusto_proxy
         self.cache = cache
-
-        self.url = baseurl + path
         self.name = self.path.rsplit('/', 1)[1]
+
+    def request(self, method, path, include_root_path=True):
+        if include_root_path:
+            path = os.path.join(self.path, path)
+        return self.clusto_proxy.request(method, path)
 
     def __getattr__(self, action):
         def method(**kwargs):
@@ -115,9 +124,9 @@ class EntityProxy(object):
                     v = json.dumps(v)
                 data[k] = v
             if data:
-                status, headers, response = request('GET', '%s/%s?%s' % (self.url, action, urlencode(data)))
+                status, headers, response = self.request('GET', '%s?%s' % (action, urlencode(data)))
             else:
-                status, headers, response = request('GET', '%s/%s' % (self.url, action))
+                status, headers, response = self.request('GET', action)
             if status != 200:
                 raise Exception(response)
             if response:
@@ -127,7 +136,7 @@ class EntityProxy(object):
         return method
 
     def delete(self):
-        status, headers, response = request('DELETE', self.url)
+        status, headers, response = self.request('DELETE', '')
         if status != 200:
             raise Exception(response)
 
@@ -149,7 +158,7 @@ class EntityProxy(object):
         else:
             result = self.show()['contents']
             self.cache['contents'] = result
-        return [EntityProxy(self.baseurl, x, self) for x in result]
+        return [EntityProxy(self.clusto_proxy, x) for x in result]
 
     def parents(self, use_cache=True):
         if use_cache and 'parents' in self.cache:
@@ -157,7 +166,7 @@ class EntityProxy(object):
         else:
             result = self.show()['parents']
             self.cache['parents'] = result
-        return [EntityProxy(self.baseurl, x, self) for x in result]
+        return [EntityProxy(self.clusto_proxy, x) for x in result]
 
     def siblings(self, include=[], exclude=[], use_cache=True):
         p = set([x.name for x in self.parents() if x.attrs(key='pooltype', subkey='role')])
@@ -165,8 +174,7 @@ class EntityProxy(object):
             p.discard(x)
         for x in include:
             p.add(x)
-        p = [self.api.get_by_name(x) for x in p]
-        print 'Searching pools:', [x.name for x in p]
+        p = [self.clusto_proxy.get_by_name(x) for x in p]
         s = set.intersection(*[set(x.contents()) for x in p])
         s.discard(self)
         return s
@@ -211,7 +219,7 @@ class EntityProxy(object):
         return self.path
 
     def __repr__(self):
-        return 'EntityProxy(%s, %s)' % (repr(self.baseurl), repr(self.path))
+        return 'EntityProxy(%r, %r)' % (self.path, self.clusto_proxy)
 
     def __cmp__(self, other):
         return cmp(self.name, other.name)
