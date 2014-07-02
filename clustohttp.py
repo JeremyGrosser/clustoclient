@@ -63,7 +63,7 @@ class ClustoProxy(object):
     def get_entities(self, **kwargs):
         for k, v in kwargs.items():
             kwargs[k] = json.dumps(v)
-        status, headers, response = self.request('POST', '/query/get_entities?%s' % urlencode(kwargs))
+        status, headers, response = self.request('GET', '/query/get_entities?%s' % urlencode(kwargs))
         if status != 200:
             raise Exception(response)
         return [EntityProxy(self, x) for x in json.loads(response)]
