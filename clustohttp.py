@@ -160,10 +160,27 @@ class EntityProxy(object):
         Inserts an object into pool
 
         Requires parameter "object"
-        object needs to be a valid clusto object such as /pool or /server etc
-        Returns
+        the object needs to be a valid clusto object such as /pool or /server etc
+        Returns the pool that object belongs to
         '''
         path = "insert?" + "object=" + object
+        status, headers, response = self.request('GET', path)
+        if status != 200:
+            raise Exception(response)
+
+        obj = json.loads(response)
+
+        return EntityProxy(self, obj['object'], obj)
+
+    def remove(self, object):
+        '''
+        Removes given object from this pool
+
+        Requires parameter "object"
+        the object needs to be a valid clusto object such as /pool or /server etc
+        Returns the pool that object used to belong
+        '''
+        path = "remove?" + "object=" + object
         status, headers, response = self.request('GET', path)
         if status != 200:
             raise Exception(response)
@@ -250,6 +267,41 @@ class EntityProxy(object):
         path = "addattr?" + "key=" + key + "&subkey=" + subkey + "&value=" + value
         if datatype:
             path += "&datatype=" + datatype
+
+        status, headers, response = self.request('GET', path)
+        if status != 200:
+            raise Exception(response)
+
+        obj = json.loads(response)
+        return EntityProxy(self, obj['object'], obj)
+
+    def set_attr(self, key, subkey, value, datatype=None):
+        '''
+        Sets an attribute of this object
+
+        Requires parameters "key", "subkey" and "value"
+        Optional "datatype" could be 'int' or 'relation' or defaults None to string
+        Returns EntityProxy of the object the attribute set
+        '''
+        path = "setattr?" + "key=" + key + "&subkey=" + subkey + "&value=" + value
+        if datatype:
+            path += "&datatype=" + datatype
+
+        status, headers, response = self.request('GET', path)
+        if status != 200:
+            raise Exception(response)
+
+        obj = json.loads(response)
+        return EntityProxy(self, obj['object'], obj)
+
+    def del_attr(self, key):
+        '''
+        Deletes a set of attributes with given key
+
+        Requires parameters "key"
+        Returns EntityProxy of the pool whose attributes removed
+        '''
+        path = "delattr?" + "key=" + key
 
         status, headers, response = self.request('GET', path)
         if status != 200:
